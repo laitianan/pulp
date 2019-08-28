@@ -176,7 +176,7 @@ def order_person(order_sum = 20000,p_location =57,va =154,vb = 234,person_number
 #    print(status)
 #    print(LpStatus[status])
 #    print(value(prob.objective))  # 计算结果
-    
+#    LpStatus
     name_a=[]
     name_a_v=[]
     name_b=[]

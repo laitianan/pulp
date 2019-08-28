@@ -23,7 +23,7 @@ def train_model(warehouse_config_time,current_TIME_QUANTUM,order_sum,wait_pack,p
             index=i
             break
         
-    assert index!=-1,"当前时间段在配置中找不到"
+#    assert index!=-1,"当前时间段在配置中找不到"
     
     warehouse_config_time=[e if e[0]>=index else (e[0],e[1],-1) for e in warehouse_config_time]
     
@@ -31,6 +31,8 @@ def train_model(warehouse_config_time,current_TIME_QUANTUM,order_sum,wait_pack,p
     
     Xb=[LpVariable("b%s"%(e[0]), lowBound=0,upBound=upBound_person,cat=pulp.LpInteger) for e in warehouse_config_time]
     
+    
+    ###待打包量
     Xs=[LpVariable("s%s"%(e[0]), lowBound=0) for i,e in enumerate(warehouse_config_time)]
     
     opponit_person= LpVariable("opponit_person", lowBound=0,upBound=upBound_person,cat=pulp.LpInteger)
@@ -56,9 +58,9 @@ def train_model(warehouse_config_time,current_TIME_QUANTUM,order_sum,wait_pack,p
         Xs.append((e,LpVariable("s%s"%(e), lowBound=0)))
     for index,e in enumerate(que_restrain_index):
         if index==len(que_restrain_index)-1:
-            Xs.append((e,LpVariable("s%s"%(e), lowBound=-1*max([vb,va]), upBound=0)))
+            Xs.append((e,LpVariable("s%s"%(e), lowBound=-vb, upBound=0)))
         else:
-            Xs.append((e,LpVariable("s%s"%(e), lowBound=0)))
+            Xs.append((e,LpVariable("s%s"%(e), lowBound=-vb)))
     Xs=[e[1] for e in sorted(Xs,key=lambda x:x[0])]
     for i in que_finish_index:
         prob +=Xa[i]==0
@@ -107,7 +109,8 @@ def get_ret_df(prob,status,Xa,Xb,warehouse_config_time,va,vb,wait_pack,order_sum
                               "待打包数量":[wait_pack]+['']*(len(time_parts)-1),"拣选效率":[va]+['']*(len(time_parts)-1),"打包效率":[vb]+['']*(len(time_parts)-1),"总工时":[sum_time]+['']*(len(time_parts)-1)})
         return df,opponit_person,sum_time
     else:
-        print("打包台数量不够,求解不出。。。。。。。")
+        print(LpStatus[status])
+        print("Not Solved---%s,在当前效率下请尝试修改打包台数量或添加人员"%(LpStatus[status]))
         return pd.DataFrame(),None,None
 def parse_args():
     
@@ -121,7 +124,7 @@ def parse_args():
     parser.add_argument('-p_location', help="打包台数量", required=True, type=int)
     parser.add_argument('-va', help="拣选效率", required=True, type=float)
     parser.add_argument('-vb', help="打包效率", required=True, type=float)
-    parser.add_argument('-current_TIME_QUANTUM', help="所在时间段，比如7:00-8:00，配置中需含有此时间段", required=True)
+    parser.add_argument('-current_TIME_QUANTUM', help="所在时间段，比如7:00-8:00，配置中需含有此时间段")
     
     parser.add_argument('-config_filename', help="配置文件路径与名称", required=True)
     parser.add_argument('-ret_save_path', help="结果保存路径名称,需要.xlsx格式", required=True)
@@ -151,12 +154,12 @@ def order_person_main():
 
 def kill():
     import os,signal
-
-    out=os.popen("ps aux | grep pulp").read()
+ 
+    out=os.popen("ps aux | grep pulp/solverdir").read()
     
     for line in out.splitlines():
-        pid = int(line.split()[1])
         try:
+            pid = int(line.split()[1])
             os.kill(pid,signal.SIGKILL)
         except Exception as e:
             print(e)
